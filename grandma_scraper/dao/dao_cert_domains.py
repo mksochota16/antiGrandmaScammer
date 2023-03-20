@@ -21,5 +21,5 @@ class DAOCertDomains(DAOBase):
             return super().insert_one(cert_domain)
         except DuplicateKeyError:
             super().replace_one('register_position_id', cert_domain.register_position_id, cert_domain)
-            account_in_db: CertDomainInDB = super().find_one_by_query({'register_position_id': cert_domain.register_position_id})
-            return ObjectId(account_in_db.id)
+            cert_domain_in_db: CertDomainInDB = super().find_one_by_query({'register_position_id': cert_domain.register_position_id})
+            return ObjectId(cert_domain_in_db.id)
