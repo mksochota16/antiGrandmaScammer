@@ -3,7 +3,7 @@ from pymongo.errors import DuplicateKeyError
 
 from grandma_scraper.dao.dao_base import DAOBase
 from grandma_scraper.config import MONGO_CLIENT, MONGODB_DB_NAME
-from grandma_scraper.models.cert_domain import CertDomain, CertDomainInDB
+from grandma_scraper.models.cert_domain import CertDomain, CertDomainInDB, CertDomainRaw
 
 
 class DAOCertDomains(DAOBase):
@@ -11,11 +11,11 @@ class DAOCertDomains(DAOBase):
         super().__init__(MONGO_CLIENT,
                          MONGODB_DB_NAME,
                          'cert_domains',
-                         CertDomain,
+                         CertDomainRaw,
                          CertDomainInDB)
 
 
-    def insert_one(self, cert_domain: CertDomain) -> ObjectId:
+    def insert_one(self, cert_domain: CertDomainRaw) -> ObjectId:
         self.collection.create_index([('register_position_id', 1)], unique=True)
         try:
             return super().insert_one(cert_domain)

@@ -1,4 +1,4 @@
-from typing import Type, List
+from typing import Type, List, Optional
 
 from pydantic import BaseModel
 from pymongo.database import Database as MongoDB
@@ -28,13 +28,19 @@ class DAOBase:
         result: MongoCursor = self.collection.find({})
         return [self.model_in_db(**doc) for doc in list(result)]
 
-    def find_by_id(self, id: ObjectId) -> BaseModel:
+    def find_by_id(self, id: ObjectId) -> Optional[BaseModel]:
         result: dict = self.collection.find_one({"_id": id})
-        return self.model_in_db(**result)
+        if result is not None:
+            return self.model_in_db(**result)
+        else:
+            return None
 
-    def find_one_by_query(self, query: dict) -> BaseModel:
+    def find_one_by_query(self, query: dict) -> Optional[BaseModel]:
         result: dict = self.collection.find_one(query)
-        return self.model_in_db(**result)
+        if result is not None:
+            return self.model_in_db(**result)
+        else:
+            return None
 
     def find_many_by_query(self, query: dict) -> List[BaseModel]:
         result: MongoCursor = self.collection.find(query)
@@ -50,6 +56,10 @@ class DAOBase:
         dict_list: List[dict] = [obj.dict() for obj in obj_list]
         result: List[ObjectId] = self.collection.insert_many(dict_list).inserted_ids
         return result
+
+    def get_many_by_list_of_ids(self, id_list: List[ObjectId]) -> List[BaseModel]:
+        result: MongoCursor = self.collection.find({'_id': {'$in': id_list}})
+        return [self.model_in_db(**doc) for doc in list(result)]
 
     def replace_one(self, field_name: str, value: any, obj: BaseModel|dict) -> bool:
         if isinstance(obj, BaseModel):
