@@ -136,8 +136,9 @@ def perform_data_collection():
     driver.quit()
 
 def main():
-    perform_data_collection()
-    sleep(SLEEP_TIME)
+    while True:
+        perform_data_collection()
+        sleep(SLEEP_TIME)
 
 if __name__ == '__main__':
     main()
