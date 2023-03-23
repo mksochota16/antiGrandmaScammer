@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 from pydantic.dataclasses import dataclass
 
-from grandma_scraper.models.base_mongo_model import MongoDBModel
+from models.base_mongo_model import MongoDBModel
 
 class CertDomainBase(BaseModel):
     register_position_id: int

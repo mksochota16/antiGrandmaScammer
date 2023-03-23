@@ -1,6 +1,6 @@
-from grandma_scraper.dao.dao_base import DAOBase
-from grandma_scraper.config import MONGO_CLIENT, MONGODB_DB_NAME
-from grandma_scraper.models.urlscan.urlscan import UrlScanRaw, UrlScanInDB
+from dao.dao_base import DAOBase
+from config import MONGO_CLIENT, MONGODB_DB_NAME
+from models.urlscan.urlscan import UrlScanRaw, UrlScanInDB
 
 
 class DAOUrlScans(DAOBase):
