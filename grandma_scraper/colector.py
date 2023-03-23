@@ -1,59 +1,86 @@
 #!/usr/bin/env python3
+from typing import List
 
 import requests
 import time
 from datetime import datetime, timedelta
 import pymongo
-import json
-from os import environ
+import pymongo.errors
+
 from selenium import webdriver
+from selenium.common import WebDriverException
+from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.chrome.options import Options
 from time import sleep
 
 from io import BytesIO
 
-def load_cert_blocklist():
-    with open("../../domains.json") as f:
-        return json.load(f)
+from grandma_scraper.config import SLEEP_TIME
+from grandma_scraper.dao.dao_cert_domains import DAOCertDomains
+from grandma_scraper.dao.dao_scraped_websites import DAOScrapedWebsites
+from grandma_scraper.dao.dao_url_scan_results import DAOUrlScanResults
+from grandma_scraper.dao.dao_url_scans import DAOUrlScans
+from grandma_scraper.models.base_mongo_model import MongoObjectId
+from grandma_scraper.models.cert_domain import CertDomainInDB, CertDomain, CertDomainRaw
+from grandma_scraper.models.scraped_website import ScrapedWebsite
+from grandma_scraper.models.urlscan.urlscan import UrlScanRaw, UrlScanResultRaw, UrlScanResultInDB
+
+def update_cert_blocklist_db() -> int:
     url = "https://hole.cert.pl/domains/domains.json"
     response = requests.get(url)
-    cert_data = response.json()
+    assert response.status_code == 200
 
-    return cert_data
+    cert_data: List[dict] = response.json()
+    dao_cert_domains: DAOCertDomains = DAOCertDomains()
+    known_ids: List[int] = [domain.register_position_id for domain in dao_cert_domains.find_all()]
+    cert_domains: List[CertDomainRaw] = [CertDomainRaw(**cert_domain_dict) for cert_domain_dict in cert_data if cert_domain_dict['RegisterPositionId'] not in known_ids]
+    if len(cert_domains) > 0:
+        dao_cert_domains.insert_many(cert_domains)
+    return len(cert_domains)
 
-def filter_by_date(data, last_update):
-    filtered_data = [d for d in data if datetime.strptime(d['InsertDate'], '%Y-%m-%dT%H:%M:%S') > last_update]
-    return filtered_data
+def get_cert_blocklist_from_mongo() -> List[CertDomainInDB]:
+    dao_cert_domains: DAOCertDomains = DAOCertDomains()
+    cert_domains: List[CertDomainInDB] = dao_cert_domains.find_all()
+    return cert_domains
 
-def get_domains(data):
-    domains = [d['DomainAddress'] for d in data]
-    return domains
 
-def scrape_website(driver, url, collection):
-    if True or not collection.find_one({'url': url}):
+def get_cert_domains_filtered_by_time(last_update: datetime) -> List[CertDomainInDB]:
+    dao_cert_domains: DAOCertDomains = DAOCertDomains()
+    filtered_domains: List[CertDomainInDB] = dao_cert_domains.find_many_by_query({'insert_date': {'$gte': last_update}})
+    return filtered_domains
+def scrape_website(driver, url):
+    dao_scraped_websites: DAOScrapedWebsites = DAOScrapedWebsites()
+    if not url.startswith('http'):
+        url = f'http://{url}'
+    if dao_scraped_websites.find_one_by_query({'url': url}) is None:
         try:
             driver.get(url)
             html = driver.page_source
             screenshot = driver.get_screenshot_as_png()
             binary_data = BytesIO(screenshot).read()
-            document = {
-                'url': url,
-                'timestamp': datetime.now(),
-                'html': html,
-                'screenshot': binary_data
-            }
-            collection.insert_one(document)
-            print(f"Successfully captured screenshot and HTML of {url}")
-        except Exception as e:
-            print(f"Error capturing screenshot and HTML of {url}: {str(e)}")
-    else:
-        print(f"Skipping {url} as it has already been captured")
+            scraped_website: ScrapedWebsite = ScrapedWebsite(
+                url=url,
+                timestamp=datetime.now(),
+                html=html,
+                screenshot=binary_data
+            )
+            dao_scraped_websites.insert_one(scraped_website)
+        except WebDriverException as e:
+            scraped_website: ScrapedWebsite = ScrapedWebsite(
+                url=url,
+                timestamp=datetime.now(),
+                html=None,
+                screenshot=None,
+                is_blocked=True,
+                error_message=e.msg
+            )
+            dao_scraped_websites.insert_one(scraped_website)
 
-def get_urls(domain):
-    url = f"https://urlscan.io/api/v1/search/?q=domain:{domain}"
+
+def get_url_scan_info(cert_domain: CertDomainInDB) -> List[UrlScanResultInDB]:
+    url = f"https://urlscan.io/api/v1/search/?q=domain:{cert_domain.domain_address}"
     response = requests.get(url)
-    print(response.json())
     if response.status_code == 429:
         # If we hit the rate limit, wait for the reset time and try again
         reset_time = int(response.headers['X-Rate-Limit-Reset'])
@@ -61,44 +88,56 @@ def get_urls(domain):
         print(f"Rate limit exceeded, waiting for {reset_after} seconds")
         time.sleep(reset_after)
         response = requests.get(url)
-    results = response.json()['results']
 
-    urls = []
-    for r in results:
-        urls.append(r['page']['url'])
+    response_json = response.json()
 
+    dao_url_scans: DAOUrlScans = DAOUrlScans()
+    dao_url_scan_results: DAOUrlScanResults = DAOUrlScanResults()
 
-    return urls
+    url_scan: UrlScanRaw = UrlScanRaw(total=response_json['total'],
+                                      took=response_json['took'],
+                                      has_more=response_json['has_more'],
+                                      cert_domain_id=cert_domain.id)
+    url_scan_id = dao_url_scans.insert_one(url_scan)
+    results_list = response_json['results']
+    if len(results_list) == 0:
+        return []
+    url_scan_results: List[UrlScanResultRaw] = []
+    for result in results_list:
+        url_scan_raw = UrlScanResultRaw(**result, url_scan_id=url_scan_id)
+        url_scan_results.append(url_scan_raw)
 
-def main():
+    list_of_inserted_id: List[MongoObjectId] = dao_url_scan_results.insert_many(url_scan_results)
+
+    return dao_url_scan_results.get_many_by_list_of_ids(list_of_inserted_id)
+
+def perform_data_collection():
     # Load and filter CERT Polska official block list
-    cert_data = load_cert_blocklist()
-    filtered_data = filter_by_date(cert_data, datetime.now() - timedelta(hours = 8))
-    domains = get_domains(filtered_data)
-    urls = get_urls(domains[-5])
+    updated_count: int = update_cert_blocklist_db()
+    relevant_data: List[CertDomainInDB] = get_cert_domains_filtered_by_time(datetime.now() - timedelta(hours = 8))
 
-    # Initialize Selenium webdriver
-    options = webdriver.ChromeOptions()
-    #options.add_argument('--headless')
-    sleep(5)
-    driver = webdriver.Remote(
-        environ.get("SELENIUM_URL"),
-        desired_capabilities=DesiredCapabilities.CHROME,
-        options=options
-    )
+    options = Options()
+    options.headless = True
+    driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
 
-    # Query urlscan.io for each domain and store results in MongoDB
-    client = pymongo.MongoClient(environ.get("MONGO_URL"))
-    db = client['adac']
-    collection = db['results']
-    scrape_website(driver, urls[0], collection)
+    dao_cert_domains: DAOCertDomains = DAOCertDomains()
+    for cert_domain in relevant_data:
+        if dao_cert_domains.find_one_by_query({'register_position_id': cert_domain.register_position_id}) is not None:
+            continue
+        url_scan_results: List[UrlScanResultInDB] = get_url_scan_info(cert_domain)
+        if len(url_scan_results) == 0:
+            #url scan could did not provide any results, probably the site is banned, however we still want to check that
+            scrape_website(driver, cert_domain.domain_address)
+        else:
+            for url_scan_result in url_scan_results:
+                scrape_website(driver, url_scan_result.page.url)
 
     # Quit Selenium webdriver
     driver.quit()
 
-    # Print all results in the database
-    for result in collection.find():
-        print(result)
+def main():
+    perform_data_collection()
+    sleep(SLEEP_TIME)
 
 if __name__ == '__main__':
     main()

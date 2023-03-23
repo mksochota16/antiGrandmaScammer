@@ -6,5 +6,7 @@ load_dotenv()
 
 MONGODB_URI = os.getenv("MONGODB_URI")
 MONGODB_PORT = int(os.getenv("MONGODB_PORT"))
-MONGODB_DB_NAME= os.getenv("MONGODB_OLD_DB_NAME")
+MONGODB_DB_NAME= os.getenv("MONGODB_DB_NAME")
 MONGO_CLIENT = MongoClient(MONGODB_URI, MONGODB_PORT)
+
+SLEEP_TIME = 60 * 10 # 10 minutes
