@@ -83,10 +83,13 @@ def get_url_scan_info(cert_domain: CertDomainInDB) -> List[UrlScanResultInDB]:
     response = requests.get(url)
     if response.status_code == 429:
         # If we hit the rate limit, wait for the reset time and try again
-        reset_time = int(response.headers['X-Rate-Limit-Reset'])
-        reset_after = int(response.headers['X-Rate-Limit-Reset-After'])
-        print(f"Rate limit exceeded, waiting for {reset_after} seconds")
-        time.sleep(reset_after)
+        #reset_time = int(response.headers['X-Rate-Limit-Reset'])
+        response_json = response.json()
+        error_message = response_json['message']
+        reset_after = int(error_message.split('Reset in ')[1].split(' seconds')[0])
+        # "Rate limit for 'search' exceeded, limit is 100 per hour. Reset in 611 seconds."
+        print(f"Rate limit exceeded, waiting for {reset_after + 50} seconds")
+        time.sleep(reset_after+ 50)
         response = requests.get(url)
 
     response_json = response.json()
