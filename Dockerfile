@@ -7,4 +7,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD [ "python3", "grandma_scraper/colector.py"]
+CMD [ "python3", "grandma_scraper/collector.py"]
