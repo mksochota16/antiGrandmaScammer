@@ -148,7 +148,7 @@ def perform_data_collection(skip_if_0_collected = True):
 def main():
     counter = 0
     while True:
-        performed_scans = perform_data_collection(skip_if_0_collected=False)
+        performed_scans = perform_data_collection(skip_if_0_collected=True)
         counter+=1
         print(f"{counter}. Performed {performed_scans} scans {datetime.now()}")
         sleep(SLEEP_TIME)
