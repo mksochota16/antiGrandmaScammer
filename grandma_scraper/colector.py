@@ -111,33 +111,43 @@ def get_url_scan_info(cert_domain: CertDomainInDB) -> List[UrlScanResultInDB]:
 
     return dao_url_scan_results.get_many_by_list_of_ids(list_of_inserted_id)
 
-def perform_data_collection():
+def perform_data_collection(skip_if_0_collected = True):
     # Load and filter CERT Polska official block list
     updated_count: int = update_cert_blocklist_db()
+    if updated_count == 0 and skip_if_0_collected:
+        return 0
     relevant_data: List[CertDomainInDB] = get_cert_domains_filtered_by_time(datetime.now() - timedelta(hours = 8))
 
     options = Options()
     options.headless = True
     driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
 
-    dao_cert_domains: DAOCertDomains = DAOCertDomains()
+    dao_url_scans: DAOUrlScans = DAOUrlScans()
+    counter = 0
     for cert_domain in relevant_data:
-        if dao_cert_domains.find_one_by_query({'register_position_id': cert_domain.register_position_id}) is not None:
+        if dao_url_scans.find_one_by_query({'cert_domain_id': cert_domain.register_position_id}) is not None:
             continue
         url_scan_results: List[UrlScanResultInDB] = get_url_scan_info(cert_domain)
         if len(url_scan_results) == 0:
             #url scan could did not provide any results, probably the site is banned, however we still want to check that
             scrape_website(driver, cert_domain.domain_address)
+            counter+=1
         else:
             for url_scan_result in url_scan_results:
                 scrape_website(driver, url_scan_result.page.url)
+                counter+=1
+
 
     # Quit Selenium webdriver
     driver.quit()
+    return counter
 
 def main():
+    counter = 0
     while True:
-        perform_data_collection()
+        performed_scans = perform_data_collection(skip_if_0_collected=False)
+        counter+=1
+        print(f"{counter}. Performed {performed_scans} scans {datetime.now()}")
         sleep(SLEEP_TIME)
 
 if __name__ == '__main__':

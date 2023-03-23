@@ -13,7 +13,7 @@ class PageBase(BaseModel):
     url: str
     tls_valid_days: Optional[int]
     tls_age_days: Optional[int]
-    tls_valid_from: datetime
+    tls_valid_from: Optional[datetime]
     domain: Optional[str]
     asnname: Optional[str]
     asn: Optional[str]
