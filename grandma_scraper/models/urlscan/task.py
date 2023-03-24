@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from grandma_scraper.models.base_mongo_model import MongoDBModel
+from models.base_mongo_model import MongoDBModel
 
 class TaskBase(BaseModel):
     visibility: str

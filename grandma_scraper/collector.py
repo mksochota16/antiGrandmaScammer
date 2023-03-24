@@ -16,15 +16,15 @@ from time import sleep
 
 from io import BytesIO
 
-from grandma_scraper.config import SLEEP_TIME
-from grandma_scraper.dao.dao_cert_domains import DAOCertDomains
-from grandma_scraper.dao.dao_scraped_websites import DAOScrapedWebsites
-from grandma_scraper.dao.dao_url_scan_results import DAOUrlScanResults
-from grandma_scraper.dao.dao_url_scans import DAOUrlScans
-from grandma_scraper.models.base_mongo_model import MongoObjectId
-from grandma_scraper.models.cert_domain import CertDomainInDB, CertDomain, CertDomainRaw
-from grandma_scraper.models.scraped_website import ScrapedWebsite
-from grandma_scraper.models.urlscan.urlscan import UrlScanRaw, UrlScanResultRaw, UrlScanResultInDB
+from config import SLEEP_TIME
+from dao.dao_cert_domains import DAOCertDomains
+from dao.dao_scraped_websites import DAOScrapedWebsites
+from dao.dao_url_scan_results import DAOUrlScanResults
+from dao.dao_url_scans import DAOUrlScans
+from models.base_mongo_model import MongoObjectId
+from models.cert_domain import CertDomainInDB, CertDomain, CertDomainRaw
+from models.scraped_website import ScrapedWebsite
+from models.urlscan.urlscan import UrlScanRaw, UrlScanResultRaw, UrlScanResultInDB
 
 def update_cert_blocklist_db() -> int:
     url = "https://hole.cert.pl/domains/domains.json"
@@ -148,7 +148,7 @@ def perform_data_collection(skip_if_0_collected = True):
 def main():
     counter = 0
     while True:
-        performed_scans = perform_data_collection(skip_if_0_collected=False)
+        performed_scans = perform_data_collection(skip_if_0_collected=True)
         counter+=1
         print(f"{counter}. Performed {performed_scans} scans {datetime.now()}")
         sleep(SLEEP_TIME)
