@@ -16,7 +16,7 @@ from time import sleep
 
 from io import BytesIO
 
-from config import SLEEP_TIME
+from config import SLEEP_TIME, SKIP_CERT_DOMAINS_CHECK, CHROMEDRIVER_PATH
 from dao.dao_cert_domains import DAOCertDomains
 from dao.dao_scraped_websites import DAOScrapedWebsites
 from dao.dao_url_scan_results import DAOUrlScanResults
@@ -114,16 +114,16 @@ def get_url_scan_info(cert_domain: CertDomainInDB) -> List[UrlScanResultInDB]:
 
     return dao_url_scan_results.get_many_by_list_of_ids(list_of_inserted_id)
 
-def perform_data_collection(skip_if_0_collected = True):
+def perform_data_collection():
     # Load and filter CERT Polska official block list
     updated_count: int = update_cert_blocklist_db()
-    if updated_count == 0 and skip_if_0_collected:
+    if updated_count == 0 and not SKIP_CERT_DOMAINS_CHECK:
         return 0
     relevant_data: List[CertDomainInDB] = get_cert_domains_filtered_by_time(datetime.now() - timedelta(hours = 8))
 
     options = Options()
     options.headless = True
-    driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
+    driver = webdriver.Chrome(CHROMEDRIVER_PATH, options=options)
 
     dao_url_scans: DAOUrlScans = DAOUrlScans()
     counter = 0
@@ -148,7 +148,7 @@ def perform_data_collection(skip_if_0_collected = True):
 def main():
     counter = 0
     while True:
-        performed_scans = perform_data_collection(skip_if_0_collected=True)
+        performed_scans = perform_data_collection()
         counter+=1
         print(f"{counter}. Performed {performed_scans} scans {datetime.now()}")
         sleep(SLEEP_TIME)
