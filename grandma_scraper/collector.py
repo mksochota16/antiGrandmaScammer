@@ -121,9 +121,11 @@ def perform_data_collection():
         return 0
     relevant_data: List[CertDomainInDB] = get_cert_domains_filtered_by_time(datetime.now() - timedelta(hours = 8))
 
-    options = Options()
-    options.headless = True
-    driver = webdriver.Chrome(CHROMEDRIVER_PATH, options=options)
+    chrome_options = webdriver.ChromeOptions()
+    chrome_options.add_argument('--headless')
+    chrome_options.add_argument('--no-sandbox')
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    driver = webdriver.Chrome(executable_path=CHROMEDRIVER_PATH, chrome_options=chrome_options)
 
     dao_url_scans: DAOUrlScans = DAOUrlScans()
     counter = 0
