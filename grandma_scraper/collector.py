@@ -4,14 +4,10 @@ from typing import List
 import requests
 import time
 from datetime import datetime, timedelta
-import pymongo
-import pymongo.errors
+import whois
 
 from selenium import webdriver
 from selenium.common import WebDriverException
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-from selenium.webdriver.chrome.options import Options
 from time import sleep
 
 from io import BytesIO
@@ -22,11 +18,14 @@ from dao.dao_logs import DAOLogs
 from dao.dao_scraped_websites import DAOScrapedWebsites
 from dao.dao_url_scan_results import DAOUrlScanResults
 from dao.dao_url_scans import DAOUrlScans
+from dao.dao_whois import DAOWhois
 from models.base_mongo_model import MongoObjectId
-from models.cert_domain import CertDomainInDB, CertDomain, CertDomainRaw
+from models.cert_domain import CertDomainInDB, CertDomainRaw
 from models.log import Log, Action
 from models.scraped_website import ScrapedWebsite
 from models.urlscan.urlscan import UrlScanRaw, UrlScanResultRaw, UrlScanResultInDB
+from models.whois import Whois
+
 
 def update_cert_blocklist_db() -> int:
     url = "https://hole.cert.pl/domains/domains.json"
@@ -93,13 +92,13 @@ def get_url_scan_info(cert_domain: CertDomainInDB) -> List[UrlScanResultInDB]:
         reset_after = int(error_message.split('Reset in ')[1].split(' seconds')[0])
         # "Rate limit for 'search' exceeded, limit is 100 per hour. Reset in 611 seconds."
         print(f"Rate limit exceeded, waiting for {reset_after + 50} seconds")
-        time.sleep(reset_after+ 50)
         url_scan_results_log = Log(
             action=Action.ERROR_IN_URL_SCAN,
             message=f"Error while performing scan, waiting for {reset_after + 50} seconds",
             error_message=error_message,
         )
         dao_logs.insert_one(url_scan_results_log)
+        time.sleep(reset_after+ 50)
         response = requests.get(url)
 
     response_json = response.json()
@@ -147,9 +146,24 @@ def perform_data_collection():
     driver = webdriver.Chrome(executable_path=CHROMEDRIVER_PATH, chrome_options=chrome_options)
 
     dao_url_scans: DAOUrlScans = DAOUrlScans()
+    dao_whois: DAOWhois = DAOWhois()
     counter = 0
     for cert_domain in relevant_data:
-        if dao_url_scans.find_one_by_query({'cert_domain_id': cert_domain.register_position_id}) is not None:
+        if dao_whois.find_one_by_query({'cert_domain_id': cert_domain.id}) is None:
+            whois_info = whois.query(cert_domain.domain_address)
+            whois_info_log = Log(
+                action=Action.PERFORMED_WHOIS,
+                message=f"Performed whois for {cert_domain.domain_address}",
+                number_of_results=1
+            )
+            dao_logs.insert_one(whois_info_log)
+
+            dao_whois.insert_one(Whois(
+                cert_domain_id=cert_domain.id,
+                result_dict=whois_info.__dict__
+            ))
+
+        if dao_url_scans.find_one_by_query({'cert_domain_id': cert_domain.id}) is not None:
             continue
         url_scan_results: List[UrlScanResultInDB] = get_url_scan_info(cert_domain)
         url_scan_results_log = Log(

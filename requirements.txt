@@ -21,3 +21,4 @@ wsproto==1.2.0
 pydantic~=1.10.6
 webdriver-manager==3.8.4
 packaging==23.0
+whois==0.9.27
