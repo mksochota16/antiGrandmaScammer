@@ -18,11 +18,13 @@ from io import BytesIO
 
 from config import SLEEP_TIME, SKIP_CERT_DOMAINS_CHECK, CHROMEDRIVER_PATH
 from dao.dao_cert_domains import DAOCertDomains
+from dao.dao_logs import DAOLogs
 from dao.dao_scraped_websites import DAOScrapedWebsites
 from dao.dao_url_scan_results import DAOUrlScanResults
 from dao.dao_url_scans import DAOUrlScans
 from models.base_mongo_model import MongoObjectId
 from models.cert_domain import CertDomainInDB, CertDomain, CertDomainRaw
+from models.log import Log, Action
 from models.scraped_website import ScrapedWebsite
 from models.urlscan.urlscan import UrlScanRaw, UrlScanResultRaw, UrlScanResultInDB
 
@@ -56,6 +58,7 @@ def scrape_website(driver, url):
     if dao_scraped_websites.find_one_by_query({'url': url}) is None:
         try:
             driver.get(url)
+            sleep(5)
             html = driver.page_source
             screenshot = driver.get_screenshot_as_png()
             binary_data = BytesIO(screenshot).read()
@@ -81,6 +84,7 @@ def scrape_website(driver, url):
 def get_url_scan_info(cert_domain: CertDomainInDB) -> List[UrlScanResultInDB]:
     url = f"https://urlscan.io/api/v1/search/?q=domain:{cert_domain.domain_address}"
     response = requests.get(url)
+    dao_logs: DAOLogs = DAOLogs()
     if response.status_code == 429:
         # If we hit the rate limit, wait for the reset time and try again
         #reset_time = int(response.headers['X-Rate-Limit-Reset'])
@@ -90,6 +94,12 @@ def get_url_scan_info(cert_domain: CertDomainInDB) -> List[UrlScanResultInDB]:
         # "Rate limit for 'search' exceeded, limit is 100 per hour. Reset in 611 seconds."
         print(f"Rate limit exceeded, waiting for {reset_after + 50} seconds")
         time.sleep(reset_after+ 50)
+        url_scan_results_log = Log(
+            action=Action.ERROR_IN_URL_SCAN,
+            message=f"Error while performing scan, waiting for {reset_after + 50} seconds",
+            error_message=error_message,
+        )
+        dao_logs.insert_one(url_scan_results_log)
         response = requests.get(url)
 
     response_json = response.json()
@@ -110,6 +120,7 @@ def get_url_scan_info(cert_domain: CertDomainInDB) -> List[UrlScanResultInDB]:
         url_scan_raw = UrlScanResultRaw(**result, url_scan_id=url_scan_id)
         url_scan_results.append(url_scan_raw)
 
+
     list_of_inserted_id: List[MongoObjectId] = dao_url_scan_results.insert_many(url_scan_results)
 
     return dao_url_scan_results.get_many_by_list_of_ids(list_of_inserted_id)
@@ -119,6 +130,14 @@ def perform_data_collection():
     updated_count: int = update_cert_blocklist_db()
     if updated_count == 0 and not SKIP_CERT_DOMAINS_CHECK:
         return 0
+    dao_logs: DAOLogs = DAOLogs()
+    updated_cert_domains_log = Log(
+        action=Action.UPDATED_CERT_DOMAINS,
+        message=f"Updated {updated_count} domains from CERT Polska blocklist",
+        number_of_results=updated_count
+    )
+    dao_logs.insert_one(updated_cert_domains_log)
+
     relevant_data: List[CertDomainInDB] = get_cert_domains_filtered_by_time(datetime.now() - timedelta(hours = 8))
 
     chrome_options = webdriver.ChromeOptions()
@@ -133,13 +152,30 @@ def perform_data_collection():
         if dao_url_scans.find_one_by_query({'cert_domain_id': cert_domain.register_position_id}) is not None:
             continue
         url_scan_results: List[UrlScanResultInDB] = get_url_scan_info(cert_domain)
+        url_scan_results_log = Log(
+            action=Action.PERFORMED_URL_SCAN,
+            message=f"Performed url scan for {cert_domain.domain_address}",
+            number_of_results=len(url_scan_results)
+        )
+        dao_logs.insert_one(url_scan_results_log)
+
         if len(url_scan_results) == 0:
             #url scan could did not provide any results, probably the site is banned, however we still want to check that
             scrape_website(driver, cert_domain.domain_address)
+            web_scrape_log = Log(
+                action=Action.PERFORMED_WEB_SCRAPE,
+                message=f"Performed web scrape for {cert_domain.domain_address}"
+            )
+            dao_logs.insert_one(web_scrape_log)
             counter+=1
         else:
             for url_scan_result in url_scan_results:
                 scrape_website(driver, url_scan_result.page.url)
+                web_scrape_log = Log(
+                    action=Action.PERFORMED_WEB_SCRAPE,
+                    message=f"Performed web scrape for {url_scan_result.page.url}"
+                )
+                dao_logs.insert_one(web_scrape_log)
                 counter+=1
 
 
