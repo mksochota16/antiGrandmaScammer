@@ -172,7 +172,8 @@ def perform_data_collection():
                     cert_domain_id=cert_domain.id,
                     result_dict=whois_info.__dict__
                 ))
-            except:
+            except Exception as e:
+                print(e)
                 print(f"Failed to whois scan on {cert_domain.domain_address}")
         else:
             print(f"Skipping whois for {cert_domain}")
