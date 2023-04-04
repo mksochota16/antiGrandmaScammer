@@ -167,10 +167,13 @@ def perform_data_collection():
                     number_of_results=1
                 )
                 dao_logs.insert_one(whois_info_log)
-
+                if whois_info is not None:
+                    result_dict = whois_info.__dict__
+                else:
+                    result_dict = None
                 dao_whois.insert_one(Whois(
                     cert_domain_id=cert_domain.id,
-                    result_dict=whois_info.__dict__
+                    result_dict=result_dict
                 ))
             except Exception as e:
                 print(e)
