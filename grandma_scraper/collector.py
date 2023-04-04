@@ -35,10 +35,12 @@ def update_cert_blocklist_db() -> int:
     cert_data: List[dict] = response.json()
     dao_cert_domains: DAOCertDomains = DAOCertDomains()
     known_ids: List[int] = [domain.register_position_id for domain in dao_cert_domains.find_all()]
-    cert_domains: List[CertDomainRaw] = [CertDomainRaw(**cert_domain_dict) for cert_domain_dict in cert_data if cert_domain_dict['RegisterPositionId'] not in known_ids]
+    cert_domains: List[CertDomainRaw] = [CertDomainRaw(**cert_domain_dict) for cert_domain_dict in cert_data if
+                                         int(cert_domain_dict['RegisterPositionId']) not in known_ids]
     if len(cert_domains) > 0:
         dao_cert_domains.insert_many(cert_domains)
     return len(cert_domains)
+
 
 def get_cert_blocklist_from_mongo() -> List[CertDomainInDB]:
     dao_cert_domains: DAOCertDomains = DAOCertDomains()
@@ -50,6 +52,8 @@ def get_cert_domains_filtered_by_time(last_update: datetime) -> List[CertDomainI
     dao_cert_domains: DAOCertDomains = DAOCertDomains()
     filtered_domains: List[CertDomainInDB] = dao_cert_domains.find_many_by_query({'insert_date': {'$gte': last_update}})
     return filtered_domains
+
+
 def scrape_website(driver, url):
     dao_scraped_websites: DAOScrapedWebsites = DAOScrapedWebsites()
     if not url.startswith('http'):
@@ -84,21 +88,21 @@ def get_url_scan_info(cert_domain: CertDomainInDB) -> List[UrlScanResultInDB]:
     url = f"https://urlscan.io/api/v1/search/?q=domain:{cert_domain.domain_address}"
     response = requests.get(url)
     dao_logs: DAOLogs = DAOLogs()
-    if response.status_code == 429:
+    while response.status_code == 429:
         # If we hit the rate limit, wait for the reset time and try again
-        #reset_time = int(response.headers['X-Rate-Limit-Reset'])
+        # reset_time = int(response.headers['X-Rate-Limit-Reset'])
         response_json = response.json()
         error_message = response_json['message']
         reset_after = int(error_message.split('Reset in ')[1].split(' seconds')[0])
         # "Rate limit for 'search' exceeded, limit is 100 per hour. Reset in 611 seconds."
-        print(f"Rate limit exceeded, waiting for {reset_after + 50} seconds")
+        print(f"Rate limit exceeded, waiting for {reset_after + 120} seconds")
         url_scan_results_log = Log(
             action=Action.ERROR_IN_URL_SCAN,
-            message=f"Error while performing scan, waiting for {reset_after + 50} seconds",
+            message=f"Error while performing scan, waiting for {reset_after + 120} seconds",
             error_message=error_message,
         )
         dao_logs.insert_one(url_scan_results_log)
-        time.sleep(reset_after+ 50)
+        time.sleep(reset_after + 120)
         response = requests.get(url)
 
     response_json = response.json()
@@ -119,14 +123,17 @@ def get_url_scan_info(cert_domain: CertDomainInDB) -> List[UrlScanResultInDB]:
         url_scan_raw = UrlScanResultRaw(**result, url_scan_id=url_scan_id)
         url_scan_results.append(url_scan_raw)
 
-
     list_of_inserted_id: List[MongoObjectId] = dao_url_scan_results.insert_many(url_scan_results)
 
     return dao_url_scan_results.get_many_by_list_of_ids(list_of_inserted_id)
 
+
 def perform_data_collection():
     # Load and filter CERT Polska official block list
+    print("Performing update_cert_blocklist_db")
     updated_count: int = update_cert_blocklist_db()
+    print("After update_cert_blocklist_db")
+
     if updated_count == 0 and not SKIP_CERT_DOMAINS_CHECK:
         return 0
     dao_logs: DAOLogs = DAOLogs()
@@ -137,7 +144,7 @@ def perform_data_collection():
     )
     dao_logs.insert_one(updated_cert_domains_log)
 
-    relevant_data: List[CertDomainInDB] = get_cert_domains_filtered_by_time(datetime.now() - timedelta(hours = 8))
+    relevant_data: List[CertDomainInDB] = get_cert_domains_filtered_by_time(datetime.now() - timedelta(hours=8))
 
     chrome_options = webdriver.ChromeOptions()
     chrome_options.add_argument('--headless')
@@ -149,22 +156,33 @@ def perform_data_collection():
     dao_whois: DAOWhois = DAOWhois()
     counter = 0
     for cert_domain in relevant_data:
+        print(f"Scan for domain {cert_domain.domain_address}")
         if dao_whois.find_one_by_query({'cert_domain_id': cert_domain.id}) is None:
-            whois_info = whois.query(cert_domain.domain_address)
-            whois_info_log = Log(
-                action=Action.PERFORMED_WHOIS,
-                message=f"Performed whois for {cert_domain.domain_address}",
-                number_of_results=1
-            )
-            dao_logs.insert_one(whois_info_log)
+            try:
+                print(f"Whois scan for domain: {cert_domain.domain_address}")
+                whois_info = whois.query(cert_domain.domain_address)
+                whois_info_log = Log(
+                    action=Action.PERFORMED_WHOIS,
+                    message=f"Performed whois for {cert_domain.domain_address}",
+                    number_of_results=1
+                )
+                dao_logs.insert_one(whois_info_log)
 
-            dao_whois.insert_one(Whois(
-                cert_domain_id=cert_domain.id,
-                result_dict=whois_info.__dict__
-            ))
+                dao_whois.insert_one(Whois(
+                    cert_domain_id=cert_domain.id,
+                    result_dict=whois_info.__dict__
+                ))
+            except:
+                print(f"Failed to whois scan on {cert_domain.domain_address}")
+        else:
+            print(f"Skipping whois for {cert_domain}")
 
         if dao_url_scans.find_one_by_query({'cert_domain_id': cert_domain.id}) is not None:
+            print(f"Skipping urlscan for {cert_domain}")
             continue
+
+        print(f"Urlscan for: {cert_domain.domain_address}")
+
         url_scan_results: List[UrlScanResultInDB] = get_url_scan_info(cert_domain)
         url_scan_results_log = Log(
             action=Action.PERFORMED_URL_SCAN,
@@ -174,36 +192,41 @@ def perform_data_collection():
         dao_logs.insert_one(url_scan_results_log)
 
         if len(url_scan_results) == 0:
-            #url scan could did not provide any results, probably the site is banned, however we still want to check that
+            print(f"Webscrape for: {cert_domain.domain_address}")
+
+            # url scan could did not provide any results, probably the site is banned, however we still want to check that
             scrape_website(driver, cert_domain.domain_address)
             web_scrape_log = Log(
                 action=Action.PERFORMED_WEB_SCRAPE,
                 message=f"Performed web scrape for {cert_domain.domain_address}"
             )
             dao_logs.insert_one(web_scrape_log)
-            counter+=1
+            counter += 1
         else:
             for url_scan_result in url_scan_results:
+                print(f"Webscrape for url_scan_result: {url_scan_result.page.url}")
+
                 scrape_website(driver, url_scan_result.page.url)
                 web_scrape_log = Log(
                     action=Action.PERFORMED_WEB_SCRAPE,
-                    message=f"Performed web scrape for {url_scan_result.page.url}"
+                    message=f"Performed web scrape for url_scan_result: {url_scan_result.page.url}"
                 )
                 dao_logs.insert_one(web_scrape_log)
-                counter+=1
-
+                counter += 1
 
     # Quit Selenium webdriver
     driver.quit()
     return counter
 
+
 def main():
     counter = 0
     while True:
         performed_scans = perform_data_collection()
-        counter+=1
-        print(f"{counter}. Performed {performed_scans} scans {datetime.now()}")
+        counter += 1
+        print(f"{counter}. Performed {performed_scans} scans {datetime.now()}, sleeping {SLEEP_TIME}")
         sleep(SLEEP_TIME)
+
 
 if __name__ == '__main__':
     main()
