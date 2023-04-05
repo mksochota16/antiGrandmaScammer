@@ -98,6 +98,7 @@ def get_url_scan_info(cert_domain: CertDomainInDB) -> List[UrlScanResultInDB]:
         print(f"Rate limit exceeded, waiting for {reset_after + 120} seconds")
         url_scan_results_log = Log(
             action=Action.ERROR_IN_URL_SCAN,
+            timestamp=datetime.now(),
             message=f"Error while performing scan, waiting for {reset_after + 120} seconds",
             error_message=error_message,
         )
@@ -113,6 +114,7 @@ def get_url_scan_info(cert_domain: CertDomainInDB) -> List[UrlScanResultInDB]:
     url_scan: UrlScanRaw = UrlScanRaw(total=response_json['total'],
                                       took=response_json['took'],
                                       has_more=response_json['has_more'],
+                                      updated_at=datetime.now(),
                                       cert_domain_id=cert_domain.id)
     url_scan_id = dao_url_scans.insert_one(url_scan)
     results_list = response_json['results']
@@ -139,6 +141,7 @@ def perform_data_collection():
     dao_logs: DAOLogs = DAOLogs()
     updated_cert_domains_log = Log(
         action=Action.UPDATED_CERT_DOMAINS,
+        timestamp=datetime.now(),
         message=f"Updated {updated_count} domains from CERT Polska blocklist",
         number_of_results=updated_count
     )
@@ -163,6 +166,7 @@ def perform_data_collection():
                 whois_info = whois.query(cert_domain.domain_address)
                 whois_info_log = Log(
                     action=Action.PERFORMED_WHOIS,
+                    timestamp=datetime.now(),
                     message=f"Performed whois for {cert_domain.domain_address}",
                     number_of_results=1
                 )
@@ -172,6 +176,7 @@ def perform_data_collection():
                 else:
                     result_dict = None
                 dao_whois.insert_one(Whois(
+                    timestamp=datetime.now(),
                     cert_domain_id=cert_domain.id,
                     result_dict=result_dict
                 ))
@@ -190,6 +195,7 @@ def perform_data_collection():
         url_scan_results: List[UrlScanResultInDB] = get_url_scan_info(cert_domain)
         url_scan_results_log = Log(
             action=Action.PERFORMED_URL_SCAN,
+            timestamp=datetime.now(),
             message=f"Performed url scan for {cert_domain.domain_address}",
             number_of_results=len(url_scan_results)
         )
@@ -202,6 +208,7 @@ def perform_data_collection():
             scrape_website(driver, cert_domain.domain_address)
             web_scrape_log = Log(
                 action=Action.PERFORMED_WEB_SCRAPE,
+                timestamp=datetime.now(),
                 message=f"Performed web scrape for {cert_domain.domain_address}"
             )
             dao_logs.insert_one(web_scrape_log)
@@ -212,6 +219,7 @@ def perform_data_collection():
 
                 scrape_website(driver, url_scan_result.page.url)
                 web_scrape_log = Log(
+                    timestamp=datetime.now(),
                     action=Action.PERFORMED_WEB_SCRAPE,
                     message=f"Performed web scrape for url_scan_result: {url_scan_result.page.url}"
                 )

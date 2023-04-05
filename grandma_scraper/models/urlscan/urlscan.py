@@ -11,7 +11,7 @@ class UrlScanBase(BaseModel):
     total: int
     took: int
     has_more: bool
-    updated_at: datetime = datetime.now()
+    updated_at: datetime
     cert_domain_id: MongoObjectId
 
 class UrlScanRaw(UrlScanBase):

@@ -19,7 +19,7 @@ class Action(str, Enum):
 
 class LogBase(BaseModel):
     action: Action
-    timestamp: datetime = datetime.now()
+    timestamp: datetime
     message: Optional[str]
     error_message: Optional[str]
     error_traceback: Optional[str]
