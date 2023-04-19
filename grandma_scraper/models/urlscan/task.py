@@ -9,7 +9,7 @@ class TaskBase(BaseModel):
     visibility: str
     method: str
     domain: str
-    apex_domain: str
+    apex_domain: Optional[str]
     time: datetime
     uuid: str
     url: str
