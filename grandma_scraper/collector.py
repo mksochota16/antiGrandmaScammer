@@ -81,7 +81,7 @@ def scrape_website(driver, url, cert_domain_id, url_scan_result_id):
                 html=None,
                 screenshot=None,
                 is_blocked=True,
-                error_message=e.msg
+                error_message=e.msg,
                 cert_domain_id=cert_domain_id,
                 url_scan_result_id=url_scan_result_id
             )
