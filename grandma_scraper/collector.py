@@ -54,7 +54,7 @@ def get_cert_domains_filtered_by_time(last_update: datetime) -> List[CertDomainI
     return filtered_domains
 
 
-def scrape_website(driver, url):
+def scrape_website(driver, url, cert_domain_id, url_scan_result_id):
     dao_scraped_websites: DAOScrapedWebsites = DAOScrapedWebsites()
     if not url.startswith('http'):
         url = f'http://{url}'
@@ -69,7 +69,9 @@ def scrape_website(driver, url):
                 url=url,
                 timestamp=datetime.now(),
                 html=html,
-                screenshot=binary_data
+                screenshot=binary_data,
+                cert_domain_id=cert_domain_id,
+                url_scan_result_id=url_scan_result_id
             )
             dao_scraped_websites.insert_one(scraped_website)
         except WebDriverException as e:
@@ -80,6 +82,8 @@ def scrape_website(driver, url):
                 screenshot=None,
                 is_blocked=True,
                 error_message=e.msg
+                cert_domain_id=cert_domain_id,
+                url_scan_result_id=url_scan_result_id
             )
             dao_scraped_websites.insert_one(scraped_website)
 
@@ -205,7 +209,7 @@ def perform_data_collection():
             print(f"Webscrape for: {cert_domain.domain_address}")
 
             # url scan could did not provide any results, probably the site is banned, however we still want to check that
-            scrape_website(driver, cert_domain.domain_address)
+            scrape_website(driver, cert_domain.domain_address, cert_domain.id, None)
             web_scrape_log = Log(
                 action=Action.PERFORMED_WEB_SCRAPE,
                 timestamp=datetime.now(),
@@ -217,7 +221,7 @@ def perform_data_collection():
             for url_scan_result in url_scan_results:
                 print(f"Webscrape for url_scan_result: {url_scan_result.page.url}")
 
-                scrape_website(driver, url_scan_result.page.url)
+                scrape_website(driver, url_scan_result.page.url, cert_domain.id, url_scan_result.id)
                 web_scrape_log = Log(
                     timestamp=datetime.now(),
                     action=Action.PERFORMED_WEB_SCRAPE,
