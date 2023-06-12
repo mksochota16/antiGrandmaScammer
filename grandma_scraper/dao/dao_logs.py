@@ -1,9 +1,9 @@
 from bson import ObjectId
 from pymongo.errors import DuplicateKeyError
 
-from dao.dao_base import DAOBase
-from config import MONGO_CLIENT, MONGODB_DB_NAME
-from models.log import Log, LogInDB
+from grandma_scraper.dao.dao_base import DAOBase
+from grandma_scraper.config import MONGO_CLIENT, MONGODB_DB_NAME
+from grandma_scraper.models.log import Log, LogInDB
 
 
 class DAOLogs(DAOBase):

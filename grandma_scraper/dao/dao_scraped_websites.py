@@ -1,9 +1,9 @@
 from bson import ObjectId
 from pymongo.errors import DuplicateKeyError
 
-from dao.dao_base import DAOBase
-from config import MONGO_CLIENT, MONGODB_DB_NAME
-from models.scraped_website import ScrapedWebsite, ScrapedWebsiteInDB
+from grandma_scraper.dao.dao_base import DAOBase
+from grandma_scraper.config import MONGO_CLIENT, MONGODB_DB_NAME
+from grandma_scraper.models.scraped_website import ScrapedWebsite, ScrapedWebsiteInDB
 
 
 class DAOScrapedWebsites(DAOBase):

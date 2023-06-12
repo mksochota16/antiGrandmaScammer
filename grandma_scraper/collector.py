@@ -12,19 +12,19 @@ from time import sleep
 
 from io import BytesIO
 
-from config import SLEEP_TIME, SKIP_CERT_DOMAINS_CHECK, CHROMEDRIVER_PATH
-from dao.dao_cert_domains import DAOCertDomains
-from dao.dao_logs import DAOLogs
-from dao.dao_scraped_websites import DAOScrapedWebsites
-from dao.dao_url_scan_results import DAOUrlScanResults
-from dao.dao_url_scans import DAOUrlScans
-from dao.dao_whois import DAOWhois
-from models.base_mongo_model import MongoObjectId
-from models.cert_domain import CertDomainInDB, CertDomainRaw
-from models.log import Log, Action
-from models.scraped_website import ScrapedWebsite
-from models.urlscan.urlscan import UrlScanRaw, UrlScanResultRaw, UrlScanResultInDB
-from models.whois import Whois
+from grandma_scraper.config import SLEEP_TIME, SKIP_CERT_DOMAINS_CHECK, CHROMEDRIVER_PATH
+from grandma_scraper.dao.dao_cert_domains import DAOCertDomains
+from grandma_scraper.dao.dao_logs import DAOLogs
+from grandma_scraper.dao.dao_scraped_websites import DAOScrapedWebsites
+from grandma_scraper.dao.dao_url_scan_results import DAOUrlScanResults
+from grandma_scraper.dao.dao_url_scans import DAOUrlScans
+from grandma_scraper.dao.dao_whois import DAOWhois
+from grandma_scraper.models.base_mongo_model import MongoObjectId
+from grandma_scraper.models.cert_domain import CertDomainInDB, CertDomainRaw
+from grandma_scraper.models.log import Log, Action
+from grandma_scraper.models.scraped_website import ScrapedWebsite
+from grandma_scraper.models.urlscan.urlscan import UrlScanRaw, UrlScanResultRaw, UrlScanResultInDB
+from grandma_scraper.models.whois import Whois
 
 
 def update_cert_blocklist_db() -> int:

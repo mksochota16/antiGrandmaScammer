@@ -11,7 +11,8 @@ try:
     SKIP_CERT_DOMAINS_CHECK: bool = os.environ["SKIP_CERT_DOMAINS_CHECK"] == "True"
     CHROMEDRIVER_PATH: str = os.environ["CHROMEDRIVER_PATH"]
 except KeyError as e:
-    raise Exception(f"Missing required environment variable: {e}")
+    pass
+    #raise Exception(f"Missing required environment variable: {e}")
 
 MONGO_CLIENT: MongoClient = MongoClient(MONGODB_URI, MONGODB_PORT)
 

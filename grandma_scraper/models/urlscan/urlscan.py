@@ -2,10 +2,10 @@ from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel
 
-from models.base_mongo_model import MongoDBModel, MongoObjectId
-from models.urlscan.page import PageBase, PageRaw, Page
-from models.urlscan.stats import Stats, StatsBase, StatsRaw
-from models.urlscan.task import Task, TaskBase, TaskRaw
+from grandma_scraper.models.base_mongo_model import MongoDBModel, MongoObjectId
+from grandma_scraper.models.urlscan.page import PageBase, PageRaw, Page
+from grandma_scraper.models.urlscan.stats import Stats, StatsBase, StatsRaw
+from grandma_scraper.models.urlscan.task import Task, TaskBase, TaskRaw
 
 class UrlScanBase(BaseModel):
     total: int
