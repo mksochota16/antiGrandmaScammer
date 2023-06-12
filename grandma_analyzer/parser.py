@@ -1,6 +1,8 @@
 import math
 import re
 import json
+from urllib.parse import urlparse
+
 from grandma_scraper.dao.dao_cert_domains import DAOCertDomains
 from grandma_scraper.dao.dao_scraped_websites import DAOScrapedWebsites
 from grandma_scraper.dao.dao_url_scan_results import DAOUrlScanResults
