@@ -78,7 +78,7 @@ class ParsedSite:
 
 
 def subdomain_count(url):
-    domain = urlparse('https://www.example.test/foo/bar').netloc
+    domain = urlparse(url).netloc
     return domain.count('.') + 1
 
 
