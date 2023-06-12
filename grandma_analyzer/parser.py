@@ -78,8 +78,8 @@ class ParsedSite:
 
 
 def subdomain_count(url):
-    slash_index = url.rfind('/')
-    return url[:slash_index].count('.') + 1
+    domain = urlparse('https://www.example.test/foo/bar').netloc
+    return domain.count('.') + 1
 
 
 def calculate_entropy(string):
