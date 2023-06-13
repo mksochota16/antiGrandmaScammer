@@ -215,9 +215,9 @@ def parse_sites():
         if dao_whois.find_one_by_query({'cert_domain_id': scrape.cert_domain_id}) is None:
             continue
         parsed_sites.append(parse_by_scraped_website_id(scrape.id).to_values_list())
-        i += 1
-        if i % 50 == 0:
-            print("Parsing: " + str(i) + "/" + str(len(all_scrapes)))
+        # i += 1
+        # if i % 50 == 0:
+        #     print("Parsing: " + str(i) + "/" + str(len(all_scrapes)))
     return parsed_sites
 
 
