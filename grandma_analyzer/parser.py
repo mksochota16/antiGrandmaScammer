@@ -143,7 +143,7 @@ def extract_path(url):
 
 def percent_in_url(url, key):
     key_count = url.count(key)
-    return round(key_count/len(url), 2)
+    return key_count/len(url)
 
 
 def parse_by_scraped_website_id(scrape_id):
