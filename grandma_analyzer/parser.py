@@ -190,7 +190,7 @@ def parse_by_scraped_website_id(scrape_id):
     parsed_obj.plus_percent = percent_in_url(url, '+')
     parsed_obj.exclamation_mark_percent = percent_in_url(url, '!')
     parsed_obj.star_percent = percent_in_url(url, '*')
-    parsed_obj.quote_percent = percent_in_url(url, '\"')
+    parsed_obj.quote_percent = percent_in_url(url, '\'')
     parsed_obj.opening_bracket_percent = percent_in_url(url, '(')
     parsed_obj.closing_bracket_percent = percent_in_url(url, ')')
     parsed_obj.comma_percent = percent_in_url(url, ',')
