@@ -208,79 +208,79 @@ def create_dataframe(url):
     df = pd.DataFrame(data)
     return df
 
-
-pd.set_option('display.max_rows', None)
-pd.set_option('display.max_columns', None)
-# Example usage
-# load all urls from urls_uniq.txt
-urls = []
-with open('urls_uniq.txt', 'r') as f:
-    urls = f.readlines()
-urls = [url.strip() for url in urls]
-# get all urls from urls.csv
-df = pd.read_csv('urls.csv')
-# get rid of urls that are already in the csv
-# get only 3 url per domain from url list
-urls_per_domain = {}
-
-# Iterate through the URLs
-for url in urls:
-    # Parse the URL to extract the domain
-    domain = urllib.parse.urlparse(url).netloc
-
-    # Check if the domain already exists in the dictionary
-    if domain in urls_per_domain:
-        # If it exists, append the URL to the list
-        urls_per_domain[domain].append(url)
-    else:
-        # If it doesn't exist, create a new list with the URL
-        urls_per_domain[domain] = [url]
-
-# Iterate through the dictionary and get the first 3 URLs from each domain
-urls = []
-for domain, url_list in urls_per_domain.items():
-    if len(url_list) > 10:
-        urls.extend(url_list[:10])
-    else:
-        urls.extend(url_list)
-
-# get only one url per domain
-urls = [url for url in urls if url not in df['url'].values]
-# put urls in random order
-random.shuffle(urls)
-print(len(urls))
-
-# create dataframe for each url and marge them
-df = pd.DataFrame()
-i = 0
-
-for url in urls:
-    try:
-        i = i + 1
-        if i % 50 == 0:
-            print("Time right now: {}".format(datetime.datetime.now()))
-            print("saving, {} left".format(len(urls) - i))
-            df.to_csv('urls.csv', mode='a', index=False,header=False)
-            df = pd.DataFrame()
-        df = pd.concat([df, create_dataframe(url)])
-    except Exception as e:
-        print(e)
-        df.to_csv('urls.csv', mode='a', index=False,header=False)
-
-# save it to csv
-df.to_csv('urls.csv', mode='a', index=False,header=False)
-
-# calculate numbers_percent as a percentage of numbers in url devided by url_len
-
 def calculate_numbers_percent(string):
     digit_count = sum(char.isdigit() for char in string)
     total_characters = len(string)
     return (digit_count / total_characters) * 100
 
-df = pd.read_csv('urls.csv')
-# Apply the function to create the 'numbers_percent' column
-df['numbers_percent'] = df['url'].apply(lambda x: calculate_numbers_percent(x))
+def analyze_urls():
+    pd.set_option('display.max_rows', None)
+    pd.set_option('display.max_columns', None)
+    # Example usage
+    # load all urls from urls_uniq.txt
+    urls = []
+    with open('urls_uniq.txt', 'r') as f:
+        urls = f.readlines()
+    urls = [url.strip() for url in urls]
+    # get all urls from urls.csv
+    df = pd.read_csv('urls.csv')
+    # get rid of urls that are already in the csv
+    # get only 3 url per domain from url list
+    urls_per_domain = {}
 
-df.drop_duplicates(subset=['url'], inplace=True, keep='first')
-# Save the dataframe to a CSV file
-df.to_csv('urls.csv', index=False)
+    # Iterate through the URLs
+    for url in urls:
+        # Parse the URL to extract the domain
+        domain = urllib.parse.urlparse(url).netloc
+
+        # Check if the domain already exists in the dictionary
+        if domain in urls_per_domain:
+            # If it exists, append the URL to the list
+            urls_per_domain[domain].append(url)
+        else:
+            # If it doesn't exist, create a new list with the URL
+            urls_per_domain[domain] = [url]
+
+    # Iterate through the dictionary and get the first 3 URLs from each domain
+    urls = []
+    for domain, url_list in urls_per_domain.items():
+        if len(url_list) > 10:
+            urls.extend(url_list[:10])
+        else:
+            urls.extend(url_list)
+
+    # get only one url per domain
+    urls = [url for url in urls if url not in df['url'].values]
+    # put urls in random order
+    random.shuffle(urls)
+    print(len(urls))
+
+    # create dataframe for each url and marge them
+    df = pd.DataFrame()
+    i = 0
+
+    for url in urls:
+        try:
+            i = i + 1
+            if i % 50 == 0:
+                print("Time right now: {}".format(datetime.datetime.now()))
+                print("saving, {} left".format(len(urls) - i))
+                df.to_csv('urls.csv', mode='a', index=False,header=False)
+                df = pd.DataFrame()
+            df = pd.concat([df, create_dataframe(url)])
+        except Exception as e:
+            print(e)
+            df.to_csv('urls.csv', mode='a', index=False,header=False)
+
+    # save it to csv
+    df.to_csv('urls.csv', mode='a', index=False,header=False)
+
+    # calculate numbers_percent as a percentage of numbers in url devided by url_len
+    df = pd.read_csv('urls.csv')
+    # Apply the function to create the 'numbers_percent' column
+    df['numbers_percent'] = df['url'].apply(lambda x: calculate_numbers_percent(x))
+
+    df.drop_duplicates(subset=['url'], inplace=True, keep='first')
+    # Save the dataframe to a CSV file
+    df.to_csv('urls.csv', index=False)
+
