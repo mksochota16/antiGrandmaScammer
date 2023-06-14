@@ -1,0 +1,12 @@
+{
+  "manifest_version": 2,
+  "name": "URL Scam Checker",
+  "version": "1.0",
+  "permissions": ["activeTab", "https://*/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://*/*"],
+      "js": ["content.js"]
+    }
+  ]
+}
